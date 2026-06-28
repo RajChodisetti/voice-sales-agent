@@ -1,0 +1,27 @@
+# ============================================================
+#  VOICE SALES AGENT — Python Dependencies (Twilio version)
+#
+#  Install:
+#    pip install -r requirements.txt
+#
+#  Or with uv:
+#    uv add "pipecat-ai[twilio,deepgram,openai,cartesia,silero]"
+#    uv add fastapi uvicorn twilio python-dotenv requests phonenumbers
+# ============================================================
+
+# ── Pipecat + plugins ─────────────────────────────────────────
+pipecat-ai[twilio,deepgram,openai,cartesia,silero]<1.0.0
+
+# ── Web server (receives Twilio WebSocket stream) ─────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# ── Twilio SDK (initiates outbound calls and SMS) ─────────────
+twilio>=9.0.0
+
+# ── Phone number validation and E.164 normalisation ──────────
+phonenumbers>=8.13.0
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dotenv>=1.0.0
+requests>=2.31.0

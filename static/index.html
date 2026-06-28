@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tuvi Solutions — Voice Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --dim: #8b949e;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --amber: #d29922;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--panel);
+    }
+
+    header svg { flex-shrink: 0; }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    header span {
+      font-size: 13px;
+      color: var(--dim);
+      margin-left: auto;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 24px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 720px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+    }
+
+    /* ── MIC BUTTON ── */
+    .mic-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 0;
+    }
+
+    .mic-btn {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: #1c2128;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+
+    .mic-btn:hover { border-color: var(--blue); }
+
+    .mic-btn.connecting { border-color: var(--amber); }
+    .mic-btn.active {
+      border-color: var(--green);
+      background: #0d2119;
+      box-shadow: 0 0 0 6px rgba(63,185,80,0.12);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .mic-btn.bot-speaking {
+      border-color: var(--blue);
+      background: #0c1929;
+      box-shadow: 0 0 0 6px rgba(88,166,255,0.14);
+      animation: pulse-blue 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 6px rgba(63,185,80,0.12); }
+      50%       { box-shadow: 0 0 0 14px rgba(63,185,80,0.04); }
+    }
+    @keyframes pulse-blue {
+      0%, 100% { box-shadow: 0 0 0 6px rgba(88,166,255,0.14); }
+      50%       { box-shadow: 0 0 0 14px rgba(88,166,255,0.05); }
+    }
+
+    .mic-icon { color: var(--dim); transition: color 0.2s; }
+    .mic-btn.active .mic-icon { color: var(--green); }
+    .mic-btn.bot-speaking .mic-icon { color: var(--blue); }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--dim);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .status-dot.ready     { background: var(--dim); }
+    .status-dot.connecting{ background: var(--amber); }
+    .status-dot.listening { background: var(--green); }
+    .status-dot.thinking  { background: var(--amber); }
+    .status-dot.speaking  { background: var(--blue); }
+    .status-dot.user-speaking { background: var(--green); }
+
+    /* ── TRANSCRIPT ── */
+    .transcript-box {
+      flex: 1;
+      min-height: 200px;
+      max-height: 320px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .transcript-box:empty::before {
+      content: "Transcript will appear here…";
+      color: var(--dim);
+      font-style: italic;
+    }
+
+    .turn { display: flex; flex-direction: column; gap: 2px; }
+    .turn-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+    .turn-label.user { color: var(--green); }
+    .turn-label.assistant { color: var(--blue); }
+    .turn-text { color: var(--text); }
+
+    .connect-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+      width: 100%;
+    }
+    .connect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .connect-btn.connect { background: var(--green); color: #000; }
+    .connect-btn.disconnect { background: var(--red); color: #fff; }
+    .connect-btn.connect:hover:not(:disabled) { opacity: 0.85; }
+    .connect-btn.disconnect:hover:not(:disabled) { opacity: 0.85; }
+
+    /* ── PHONE PANEL ── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label { font-size: 12px; color: var(--dim); font-weight: 500; }
+    .form-group input {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus { border-color: var(--blue); }
+    .form-group input::placeholder { color: var(--dim); }
+
+    .call-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--blue);
+      color: #000;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      width: 100%;
+    }
+    .call-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .call-btn:hover:not(:disabled) { opacity: 0.85; }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+    }
+
+    .calls-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .calls-header .refresh-btn {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .calls-header .refresh-btn:hover { color: var(--text); }
+
+    .calls-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .call-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .call-row:hover { border-color: var(--blue); }
+
+    .call-num { font-family: monospace; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .call-outcome {
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: capitalize;
+      flex-shrink: 0;
+    }
+    .call-outcome.booked    { background: rgba(63,185,80,0.15);  color: var(--green); }
+    .call-outcome.opted_out { background: rgba(248,81,73,0.15);  color: var(--red);   }
+    .call-outcome.completed { background: rgba(139,148,158,0.15);color: var(--dim);   }
+    .call-outcome.transferred { background: rgba(88,166,255,0.15); color: var(--blue); }
+    .call-outcome.no-answer { background: rgba(210,153,34,0.15); color: var(--amber); }
+    .call-outcome.unknown   { background: rgba(139,148,158,0.1); color: var(--dim);   }
+
+    .call-dur { color: var(--dim); flex-shrink: 0; }
+
+    .empty-state { color: var(--dim); font-size: 13px; font-style: italic; text-align: center; padding: 20px 0; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      max-width: 280px;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+    .toast.error { border-color: var(--red); color: var(--red); }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.info { border-color: var(--blue); color: var(--blue); }
+    .toast.hidden { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="28" height="28" rx="6" fill="#58a6ff"/>
+    <path d="M14 7C10.134 7 7 10.134 7 14c0 2.21.953 4.198 2.473 5.577L8 21h4c.642 0 1.258-.1 1.837-.284A7 7 0 1 0 14 7z" fill="#0d1117"/>
+    <circle cx="14" cy="14" r="2.5" fill="#58a6ff"/>
+  </svg>
+  <h1>Tuvi Solutions — Voice Agent</h1>
+  <span id="server-status">● connecting…</span>
+</header>
+
+<main>
+  <!-- ── BROWSER VOICE PANEL ── -->
+  <div class="panel" id="browser-panel">
+    <div class="panel-title">Browser Voice Session</div>
+
+    <div class="mic-area">
+      <button class="mic-btn" id="mic-btn" title="Click to connect" onmousedown="preloadWorklet()" onclick="toggleSession()">
+        <svg class="mic-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0M12 19v3M9 22h6"/>
+        </svg>
+      </button>
+      <div class="status-badge">
+        <div class="status-dot ready" id="status-dot"></div>
+        <span id="status-label">Ready — click mic to connect</span>
+      </div>
+    </div>
+
+    <button class="connect-btn connect" id="connect-btn" onmousedown="preloadWorklet()" onclick="toggleSession()">
+      Connect to Agent
+    </button>
+
+    <div class="transcript-box" id="transcript"></div>
+  </div>
+
+  <!-- ── PHONE PANEL ── -->
+  <div class="panel" id="phone-panel">
+    <div class="panel-title">Phone Outreach</div>
+
+    <div class="form-group">
+      <label for="phone-input">Phone number (AU)</label>
+      <input id="phone-input" type="tel" placeholder="+61 4XX XXX XXX" />
+    </div>
+    <div class="form-group">
+      <label for="campaign-input">Campaign ID (optional)</label>
+      <input id="campaign-input" type="text" placeholder="campaign_01" value="default" />
+    </div>
+
+    <button class="call-btn" id="call-btn" onclick="makeCall()">
+      Call Now
+    </button>
+
+    <hr class="section-divider">
+
+    <div class="calls-header">
+      <div class="panel-title">Recent Calls</div>
+      <button class="refresh-btn" onclick="loadCalls()">↻ refresh</button>
+    </div>
+    <div class="calls-list" id="calls-list">
+      <div class="empty-state">No calls yet.</div>
+    </div>
+  </div>
+</main>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// ── BROWSER VOICE SESSION ──────────────────────────────────────────────────────
+
+let ws = null;
+let audioCtx = null;
+let workletNode = null;
+let stream = null;
+let nextPlayTime = 0;
+let sessionActive = false;
+
+// Pre-loaded AudioWorklet module — avoids the addModule() round-trip on connect
+let _workletReady = false;
+let _preloadCtx = null;   // temporary AudioContext used only for preloading the module
+
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/browser-stream`;
+
+// Pre-load the AudioWorklet module on first user gesture so it's ready by connect time.
+// Called once from the connect button's mousedown (before the async getUserMedia dialog).
+async function preloadWorklet() {
+    if (_workletReady) return;
+    try {
+        _preloadCtx = new AudioContext({ sampleRate: 16000 });
+        await _preloadCtx.audioWorklet.addModule('/static/audio-processor.js');
+        _workletReady = true;
+    } catch (e) {
+        // Non-fatal — will fall back to loading on connect
+    }
+}
+
+function setStatus(state, label) {
+    const dot = document.getElementById('status-dot');
+    const lbl = document.getElementById('status-label');
+    const btn = document.getElementById('mic-btn');
+    const cbtn = document.getElementById('connect-btn');
+
+    dot.className = 'status-dot ' + state;
+    lbl.textContent = label;
+
+    btn.className = 'mic-btn';
+    if (state === 'listening' || state === 'user-speaking') btn.classList.add('active');
+    if (state === 'speaking') btn.classList.add('bot-speaking');
+    if (state === 'connecting') btn.classList.add('connecting');
+
+    cbtn.className = 'connect-btn ' + (sessionActive ? 'disconnect' : 'connect');
+    cbtn.textContent = sessionActive ? 'Disconnect' : 'Connect to Agent';
+}
+
+function addTranscript(role, text) {
+    const box = document.getElementById('transcript');
+    const turn = document.createElement('div');
+    turn.className = 'turn';
+    const label = document.createElement('div');
+    label.className = `turn-label ${role}`;
+    label.textContent = role === 'user' ? 'You' : 'Alex (AI)';
+    const content = document.createElement('div');
+    content.className = 'turn-text';
+    content.textContent = text;
+    turn.appendChild(label);
+    turn.appendChild(content);
+    box.appendChild(turn);
+    box.scrollTop = box.scrollHeight;
+}
+
+function playPCM16(buffer) {
+    if (!audioCtx) return;
+    // Resume is already called during setup; this is a safety net only.
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); return; }
+    const int16 = new Int16Array(buffer);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768.0;
+    }
+    const audioBuffer = audioCtx.createBuffer(1, float32.length, 16000);
+    audioBuffer.copyToChannel(float32, 0);
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioCtx.destination);
+    const start = Math.max(audioCtx.currentTime, nextPlayTime);
+    source.start(start);
+    nextPlayTime = start + audioBuffer.duration;
+}
+
+function resetPlayback() {
+    nextPlayTime = audioCtx ? audioCtx.currentTime : 0;
+}
+
+async function startSession() {
+    try {
+        setStatus('connecting', 'Requesting microphone…');
+
+        // 1. Request mic — shows the browser permission dialog
+        const micPromise = navigator.mediaDevices.getUserMedia({
+            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+        });
+
+        // 2. Open WebSocket in parallel.
+        //    IMPORTANT: wire up onmessage NOW, before awaiting mic,
+        //    so we don't miss the "ready" event the server sends on connect.
+        ws = new WebSocket(WS_URL);
+        ws.binaryType = 'arraybuffer';
+
+        // Buffer for messages that arrive before AudioContext is ready
+        const earlyMessages = [];
+        let audioReady = false;
+
+        ws.onerror = () => {
+            showToast('WebSocket error — is the server running?', 'error');
+            stopSession(false);
+        };
+        ws.onclose = () => { if (!sessionActive) stopSession(false); };
+
+        // Set up message handler immediately — before mic await
+        ws.onmessage = async (evt) => {
+            if (!audioReady) {
+                // AudioContext not ready yet — buffer text events, queue audio
+                if (typeof evt.data === 'string') earlyMessages.push(evt.data);
+                // Binary audio: buffer it to play once AudioContext is ready
+                else earlyMessages.push(evt.data);
+                return;
+            }
+            await _handleMessage(evt);
+        };
+
+        // 3. Wait for mic permission (user clicks Allow)
+        stream = await micPromise;
+
+        // 4. Set up AudioContext — reuse pre-loaded worklet if available
+        if (_workletReady && _preloadCtx && _preloadCtx.state !== 'closed') {
+            audioCtx = _preloadCtx;
+            _preloadCtx = null;
+        } else {
+            audioCtx = new AudioContext({ sampleRate: 16000 });
+            if (!_workletReady) {
+                await audioCtx.audioWorklet.addModule('/static/audio-processor.js');
+                _workletReady = true;
+            }
+        }
+        // Browsers may start AudioContext in "suspended" state — resume it explicitly
+        // while we're still in the user gesture call stack so audio plays immediately.
+        if (audioCtx.state !== 'running') await audioCtx.resume();
+
+        audioReady = true;
+
+        // 5. Replay any messages that arrived while we were setting up
+        for (const data of earlyMessages) {
+            await _handleMessage({ data });
+        }
+        earlyMessages.length = 0;
+
+        // Replace the buffering handler with the live one
+        ws.onmessage = async (evt) => { await _handleMessage(evt); };
+
+    } catch (e) {
+        showToast(`Could not start session: ${e.message}`, 'error');
+        setStatus('ready', 'Ready — click mic to connect');
+        if (ws) { ws.close(); ws = null; }
+    }
+}
+
+async function _handleMessage(evt) {
+    if (typeof evt.data === 'string') {
+        let msg;
+        try { msg = JSON.parse(evt.data); } catch { return; }
+
+        if (msg.event === 'ready') {
+            // Pipeline live — start sending mic audio
+            await startMic();
+            sessionActive = true;
+            setStatus('speaking', 'Alex is greeting you…');
+        }
+
+        if (msg.event === 'status') {
+            const stateMap = {
+                user_speaking: ['user-speaking', 'You are speaking…'],
+                thinking:      ['thinking',      'Alex is thinking…'],
+                bot_speaking:  ['speaking',      'Alex is speaking…'],
+                listening:     ['listening',     'Listening…'],
+            };
+            const [s, l] = stateMap[msg.state] || ['listening', 'Listening…'];
+            if (msg.state === 'user_speaking') resetPlayback();
+            setStatus(s, l);
+        }
+
+        if (msg.event === 'transcript') {
+            addTranscript(msg.role, msg.text);
+        }
+    } else {
+        // Binary PCM16 audio — play immediately
+        playPCM16(evt.data);
+    }
+}
+
+async function startMic() {
+    const source = audioCtx.createMediaStreamSource(stream);
+    workletNode = new AudioWorkletNode(audioCtx, 'mic-processor');
+    workletNode.port.onmessage = (e) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(e.data);
+        }
+    };
+    source.connect(workletNode);
+    workletNode.connect(audioCtx.destination);
+}
+
+function stopSession(sendStop = true) {
+    sessionActive = false;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        if (sendStop) ws.send(JSON.stringify({ event: 'stop' }));
+        ws.close();
+    }
+    ws = null;
+    if (workletNode) { workletNode.disconnect(); workletNode = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; _workletReady = false; }
+    nextPlayTime = 0;
+    setStatus('ready', 'Ready — click mic to connect');
+}
+
+function toggleSession() {
+    if (sessionActive || (ws && ws.readyState <= 1)) {
+        stopSession(true);
+    } else {
+        startSession();
+    }
+}
+
+// ── PHONE OUTREACH ─────────────────────────────────────────────────────────────
+
+async function makeCall() {
+    const phone = document.getElementById('phone-input').value.trim();
+    const campaign = document.getElementById('campaign-input').value.trim() || 'default';
+    if (!phone) { showToast('Please enter a phone number.', 'error'); return; }
+
+    const btn = document.getElementById('call-btn');
+    btn.disabled = true;
+    btn.textContent = 'Calling…';
+
+    try {
+        const res = await fetch('/call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: phone, campaign_id: campaign }),
+        });
+        const data = await res.json();
+
+        if (data.status === 'calling') {
+            showToast(`Call initiated to ${data.to}`, 'success');
+        } else if (data.status === 'blocked') {
+            showToast(`Blocked: ${data.reason}`, 'error');
+        } else if (data.status === 'queued') {
+            showToast(`Queued: ${data.message}`, 'info');
+        } else {
+            showToast(JSON.stringify(data), 'info');
+        }
+        loadCalls();
+    } catch (e) {
+        showToast(`Error: ${e.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Call Now';
+    }
+}
+
+function fmtDuration(s) {
+    if (!s && s !== 0) return '—';
+    if (s < 60) return `${Math.round(s)}s`;
+    return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+}
+
+async function loadCalls() {
+    try {
+        const res = await fetch('/calls?limit=30');
+        const calls = await res.json();
+        const list = document.getElementById('calls-list');
+
+        if (!calls.length) {
+            list.innerHTML = '<div class="empty-state">No calls yet.</div>';
+            return;
+        }
+
+        list.innerHTML = calls.map(c => {
+            const outcome = c.outcome || 'unknown';
+            const outcomeClass = outcome.replace(/_/g, '-');
+            const to = c.to_number || c.call_sid || '—';
+            const dur = fmtDuration(c.duration_s);
+            return `
+                <div class="call-row" onclick="viewCall(${c.id})">
+                    <span class="call-num">${escHtml(to)}</span>
+                    <span class="call-outcome ${escHtml(outcomeClass)}">${escHtml(outcome.replace(/_/g,' '))}</span>
+                    <span class="call-dur">${dur}</span>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('loadCalls error:', e);
+    }
+}
+
+async function viewCall(id) {
+    try {
+        const res = await fetch(`/calls/${id}`);
+        const data = await res.json();
+        const turns = (data.turns || []).map(t => `[${t.role}] ${t.text}`).join('\n');
+        const info = `Call #${id}\nTo: ${data.call?.to_number || '—'}\nOutcome: ${data.call?.outcome || '—'}\nDuration: ${fmtDuration(data.call?.duration_s)}\n\n--- Transcript ---\n${turns || '(no transcript)'}`;
+        alert(info);
+    } catch (e) {
+        showToast(`Failed to load call ${id}`, 'error');
+    }
+}
+
+function escHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────────────
+
+let _toastTimer = null;
+function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { t.classList.add('hidden'); }, 4000);
+}
+
+// ── SERVER STATUS ──────────────────────────────────────────────────────────────
+
+async function checkServer() {
+    try {
+        const res = await fetch('/healthz');
+        if (res.ok) {
+            const el = document.getElementById('server-status');
+            el.textContent = '● online';
+            el.style.color = 'var(--green)';
+        }
+    } catch {
+        const el = document.getElementById('server-status');
+        el.textContent = '● offline';
+        el.style.color = 'var(--red)';
+    }
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+
+checkServer();
+loadCalls();
+setInterval(checkServer, 30000);
+</script>
+</body>
+</html>
